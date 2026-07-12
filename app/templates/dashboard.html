@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .balance-hero{background:var(--navy);border-radius:16px;padding:28px 24px;
+    margin-bottom:20px;position:relative;overflow:hidden}
+  .balance-hero::before{content:'';position:absolute;top:-40px;right:-40px;
+    width:160px;height:160px;border-radius:50%;background:rgba(201,150,58,.12)}
+  .balance-hero .label{font-size:12px;color:rgba(255,255,255,.55);
+    letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+  .balance-hero .amount{font-family:var(--font-display);font-size:36px;
+    color:var(--white);letter-spacing:-1px;margin-bottom:4px}
+  .balance-hero .account{font-size:12px;color:rgba(255,255,255,.45)}
+  .quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
+  .qa-btn{background:var(--white);border:1px solid var(--gray-30);border-radius:12px;
+    padding:14px 8px 12px;display:flex;flex-direction:column;align-items:center;
+    gap:6px;font-size:11px;color:var(--navy);font-weight:500;text-decoration:none;
+    box-shadow:var(--shadow)}
+  .qa-btn:hover{border-color:var(--navy-60);background:var(--gray-10)}
+  .qa-btn svg{width:22px;height:22px;stroke:var(--navy-60);fill:none;stroke-width:1.8}
+</style>
+
+<div style="display:flex;flex-direction:column;min-height:100vh">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="mark">BN</div>
+      <span>BancoNova</span>
+    </div>
+    <div class="topbar-user">
+      <div class="avatar">{{ iniciales }}</div>
+      <span class="name">{{ nombre }}</span>
+      <a href="/logout" class="btn-logout">Salir</a>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="page-content">
+
+    <!-- Badge de ambiente -->
+    <div style="margin-bottom:16px">
+      <span class="ambiente-badge">
+        <span class="dot"></span>
+        {{ ambiente | upper }} — v{{ version }}
+      </span>
+    </div>
+
+    <!-- Saldo -->
+    <div class="balance-hero">
+      <p class="label">Saldo disponible</p>
+      <p class="amount">${{ "{:,.2f}".format(saldo) }}</p>
+      <p class="account">Cuenta: •••• •••• 7842</p>
+    </div>
+
+    <!-- Acciones rápidas -->
+    <div class="quick-actions">
+      <a href="/transferencia" class="qa-btn">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Transferir
+      </a>
+      <a href="/pagos" class="qa-btn">
+        <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        Pagar
+      </a>
+      <a href="/historial" class="qa-btn">
+        <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
+        Historial
+      </a>
+      <a href="/historial" class="qa-btn">
+        <svg viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/></svg>
+        Más
+      </a>
+    </div>
+
+    <!-- Movimientos recientes -->
+    <p class="section-title">Movimientos recientes</p>
+    <div class="movement-list">
+      {% for m in movimientos %}
+      <div class="movement">
+        <div class="mov-icon {{ m.tipo }}">{{ m.icono }}</div>
+        <div class="mov-info">
+          <p class="desc">{{ m.desc }}</p>
+          <p class="date">{{ m.fecha }}</p>
+        </div>
+        <p class="mov-amount {{ m.tipo }}">
+          {{ '+' if m.tipo == 'in' else '-' }}${{ "{:,.2f}".format(m.monto) }}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <a href="/dashboard" class="nav-item active">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Inicio
+    </a>
+    <a href="/transferencia" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Transferir
+    </a>
+    <a href="/pagos" class="nav-item">
+      <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      Pagar
+    </a>
+    <a href="/historial" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
+      Historial
+    </a>
+  </nav>
+</div>
+{% endblock %}

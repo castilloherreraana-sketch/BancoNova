@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  #screen-login{background:var(--navy);min-height:100vh;display:flex;
+    align-items:center;justify-content:center;padding:24px;position:relative}
+  .login-card{background:var(--white);border-radius:16px;padding:48px 40px;
+    width:100%;max-width:420px;box-shadow:var(--shadow-lg)}
+  .login-logo{text-align:center;margin-bottom:32px}
+  .logo-mark{width:56px;height:56px;background:var(--navy);border-radius:14px;
+    display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .logo-mark span{color:var(--gold);font-family:var(--font-display);
+    font-size:26px;font-weight:bold}
+  .login-logo h1{font-family:var(--font-display);font-size:22px;color:var(--navy)}
+  .login-logo p{font-size:13px;color:var(--gray-60);margin-top:2px}
+  .login-hint{text-align:center;margin-top:20px;font-size:12px;color:var(--gray-60);line-height:1.6}
+  .login-version{position:absolute;bottom:20px;font-size:11px;
+    color:rgba(255,255,255,.3);letter-spacing:.04em}
+</style>
+
+<div id="screen-login">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark"><span>BN</span></div>
+      <h1>BancoNova</h1>
+      <p>Banca digital segura y confiable</p>
+    </div>
+
+    {% if error %}
+    <div class="alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label>Usuario</label>
+        <input type="text" name="username" placeholder="Ej: ana.garcia" required>
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" name="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn-primary">Ingresar a mi cuenta</button>
+    </form>
+
+    <div class="login-hint">
+      Demo: usuario <strong>ana.garcia</strong> / contraseña <strong>12345</strong><br>
+      <span style="color:#B03030;font-size:11px">
+        {{ version }} — Ambiente: {{ ambiente }}
+      </span>
+    </div>
+  </div>
+  <span class="login-version">BancoNova © 2026 — Pipeline: GitHub Actions</span>
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+# Configuración del linter de Ansible para BancoNova
+exclude_paths:
+  - vault.yml
+  - ansible.log
+
+# Reglas a ignorar (solo para este proyecto académico)
+skip_list:
+  - no-changed-when
+  - command-instead-of-module

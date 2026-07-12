@@ -1,0 +1,96 @@
+# ================================================================
+#  ROL: servidor_base
+#  Configura el sistema operativo base antes de instalar
+#  cualquier otra herramienta en el servidor de BancoNova
+# ================================================================
+---
+
+# ── 1. Actualizar paquetes del sistema ──────────────────────────
+- name: Actualizar lista de paquetes
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+- name: Actualizar todos los paquetes a la última versión
+  ansible.builtin.apt:
+    upgrade: dist
+  become: yes
+
+# ── 2. Instalar herramientas base ───────────────────────────────
+- name: Instalar paquetes esenciales
+  ansible.builtin.apt:
+    name: "{{ paquetes_base }}"
+    state: present
+  become: yes
+
+# ── 3. Crear usuario de sistema para BancoNova ──────────────────
+- name: Crear grupo banconova
+  ansible.builtin.group:
+    name: "{{ app_nombre }}"
+    state: present
+  become: yes
+
+- name: Crear usuario banconova sin privilegios de root
+  ansible.builtin.user:
+    name: "{{ app_nombre }}"
+    group: "{{ app_nombre }}"
+    shell: /bin/bash
+    create_home: yes
+    comment: "Usuario de sistema BancoNova"
+  become: yes
+
+# ── 4. Configurar el firewall UFW ───────────────────────────────
+- name: Instalar UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  become: yes
+
+- name: Habilitar UFW y establecer política por defecto
+  community.general.ufw:
+    state: enabled
+    policy: deny
+  become: yes
+
+- name: Abrir puertos necesarios en el firewall
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ puertos_firewall }}"
+  become: yes
+
+# ── 5. Ajustar parámetros del kernel para Docker y K8s ─────────
+- name: Habilitar bridge-nf-call-iptables para Kubernetes
+  ansible.builtin.sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: "1"
+    state: present
+    reload: yes
+  become: yes
+
+- name: Habilitar IP forwarding para los contenedores
+  ansible.builtin.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    reload: yes
+  become: yes
+
+# ── 6. Configurar zona horaria ──────────────────────────────────
+- name: Establecer zona horaria a America/Mexico_City
+  community.general.timezone:
+    name: America/Mexico_City
+  become: yes
+  notify: Reiniciar cron
+
+# ── 7. Verificar configuración ──────────────────────────────────
+- name: Verificar que el usuario banconova fue creado
+  ansible.builtin.command: id banconova
+  register: resultado_usuario
+  changed_when: false
+
+- name: Mostrar resultado de verificación
+  ansible.builtin.debug:
+    msg: "Usuario creado correctamente: {{ resultado_usuario.stdout }}"

@@ -1,0 +1,16 @@
+# ================================================================
+#  BANCONOVA — Variables específicas del ambiente DESARROLLO
+# ================================================================
+
+ambiente:         desarrollo
+puerto_app:       5000
+puerto_externo:   30001
+replicas:         1
+flask_debug:      "true"
+log_level:        DEBUG
+
+# En desarrollo se permite reinicio automático del contenedor
+restart_policy:   unless-stopped
+
+# URL de acceso al ambiente
+app_url:          "http://localhost:30001"

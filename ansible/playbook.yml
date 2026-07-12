@@ -1,0 +1,338 @@
+# ================================================================
+#  BANCONOVA — Playbook principal
+#  Archivo : playbook.yml
+#  Objetivo: Configurar servidores e instalar la aplicacion
+#            BancoNova en los ambientes de desarrollo y produccion
+#
+#  Uso:
+#    Todos los ambientes : ansible-playbook playbook.yml
+#    Solo desarrollo     : ansible-playbook playbook.yml --limit desarrollo
+#    Solo produccion     : ansible-playbook playbook.yml --limit produccion
+#    Solo instalar app   : ansible-playbook playbook.yml --tags app
+#    Solo instalar docker: ansible-playbook playbook.yml --tags docker
+# ================================================================
+---
+
+- name: Configuracion completa de servidores BancoNova
+  hosts: servidores_banconova
+  become: yes
+
+  # ── Variables adicionales del playbook ────────────────────────
+  vars:
+    app_nombre:    banconova
+    app_version:   "1.0.0"
+    imagen_docker: banconova-app
+
+  # ── Tareas previas: mostrar informacion del servidor ──────────
+  pre_tasks:
+
+    - name: Mostrar informacion del servidor
+      ansible.builtin.debug:
+        msg: |
+          ================================================
+            BancoNova — Inicio del playbook
+          ================================================
+            Servidor  : {{ inventory_hostname }}
+            Ambiente  : {{ ambiente }}
+            Version   : {{ app_version }}
+            IP host   : {{ ansible_host }}
+            URL acceso: {{ app_url }}
+          ================================================
+
+    - name: Verificar que el servidor es accesible
+      ansible.builtin.ping:
+
+    - name: Verificar version de Python en el servidor
+      ansible.builtin.command: python3 --version
+      register: python_version
+      changed_when: false
+
+    - name: Mostrar version de Python
+      ansible.builtin.debug:
+        msg: "Python disponible: {{ python_version.stdout }}"
+
+  # ── BLOQUE 1: Configuracion base del sistema operativo ────────
+  tasks:
+
+    # ── 1.1 Actualizar paquetes del sistema ─────────────────────
+    - name: "[BASE] Actualizar lista de paquetes"
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: [base, siempre]
+
+    - name: "[BASE] Actualizar paquetes del sistema operativo"
+      ansible.builtin.apt:
+        upgrade: dist
+      tags: [base, siempre]
+
+    # ── 1.2 Instalar herramientas esenciales ────────────────────
+    - name: "[BASE] Instalar paquetes esenciales"
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - git
+          - vim
+          - htop
+          - unzip
+          - python3-pip
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+          - lsb-release
+        state: present
+      tags: [base, siempre]
+
+    # ── 1.3 Crear usuario de sistema sin privilegios ─────────────
+    - name: "[BASE] Crear grupo banconova"
+      ansible.builtin.group:
+        name: "{{ app_nombre }}"
+        state: present
+      tags: [base, siempre]
+
+    - name: "[BASE] Crear usuario banconova sin privilegios root"
+      ansible.builtin.user:
+        name: "{{ app_nombre }}"
+        group: "{{ app_nombre }}"
+        shell: /bin/bash
+        create_home: yes
+        comment: "Usuario de sistema BancoNova"
+      tags: [base, siempre]
+
+    # ── 1.4 Configurar firewall ──────────────────────────────────
+    - name: "[BASE] Habilitar UFW con politica de denegacion"
+      community.general.ufw:
+        state: enabled
+        policy: deny
+      tags: [base, firewall]
+
+    - name: "[BASE] Abrir puertos necesarios en el firewall"
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "22"      # SSH
+        - "80"      # HTTP
+        - "443"     # HTTPS
+        - "5000"    # Puerto Flask
+        - "30001"   # NodePort desarrollo
+        - "30002"   # NodePort produccion
+      tags: [base, firewall]
+
+    # ── 1.5 Ajustar parametros del kernel ───────────────────────
+    - name: "[BASE] Habilitar bridge-nf-call-iptables para K8s"
+      ansible.builtin.sysctl:
+        name: net.bridge.bridge-nf-call-iptables
+        value: "1"
+        state: present
+        reload: yes
+      tags: [base, kernel]
+
+    - name: "[BASE] Habilitar IP forwarding para contenedores"
+      ansible.builtin.sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        state: present
+        reload: yes
+      tags: [base, kernel]
+
+    # ── BLOQUE 2: Instalacion de Docker ─────────────────────────
+
+    - name: "[DOCKER] Agregar clave GPG oficial de Docker"
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      tags: [docker]
+
+    - name: "[DOCKER] Agregar repositorio oficial de Docker"
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+      tags: [docker]
+
+    - name: "[DOCKER] Instalar Docker Engine"
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+      notify: Reiniciar Docker
+      tags: [docker]
+
+    - name: "[DOCKER] Crear directorio de configuracion de Docker"
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+      tags: [docker]
+
+    - name: "[DOCKER] Configurar daemon.json con limites de logs"
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "3"
+            },
+            "live-restore": true
+          }
+        mode: '0644'
+      notify: Reiniciar Docker
+      tags: [docker]
+
+    - name: "[DOCKER] Habilitar y arrancar servicio Docker"
+      ansible.builtin.systemd:
+        name: docker
+        enabled: yes
+        state: started
+      tags: [docker]
+
+    - name: "[DOCKER] Agregar usuario banconova al grupo docker"
+      ansible.builtin.user:
+        name: banconova
+        groups: docker
+        append: yes
+      tags: [docker]
+
+    - name: "[DOCKER] Verificar instalacion de Docker"
+      ansible.builtin.command: docker --version
+      register: docker_ver
+      changed_when: false
+      tags: [docker]
+
+    - name: "[DOCKER] Mostrar version instalada"
+      ansible.builtin.debug:
+        msg: "{{ docker_ver.stdout }}"
+      tags: [docker]
+
+    # ── BLOQUE 3: Despliegue de la aplicacion BancoNova ─────────
+
+    - name: "[APP] Crear directorio base de BancoNova"
+      ansible.builtin.file:
+        path: "/opt/{{ app_nombre }}"
+        state: directory
+        owner: banconova
+        group: banconova
+        mode: '0755'
+      tags: [app, deploy]
+
+    - name: "[APP] Crear directorio de logs"
+      ansible.builtin.file:
+        path: "/opt/{{ app_nombre }}/logs"
+        state: directory
+        owner: banconova
+        group: banconova
+        mode: '0755'
+      tags: [app, deploy]
+
+    - name: "[APP] Crear archivo .env para el ambiente {{ ambiente }}"
+      ansible.builtin.copy:
+        dest: "/opt/{{ app_nombre }}/.env"
+        content: |
+          # Generado automaticamente por Ansible
+          # Ambiente: {{ ambiente }}
+          APP_NOMBRE={{ app_nombre }}
+          APP_VERSION={{ app_version }}
+          AMBIENTE={{ ambiente }}
+          PORT={{ puerto_app }}
+          FLASK_DEBUG={{ flask_debug }}
+          LOG_LEVEL={{ log_level }}
+        owner: banconova
+        group: banconova
+        mode: '0600'
+      notify: Reiniciar contenedor BancoNova
+      tags: [app, deploy]
+
+    - name: "[APP] Detener contenedor anterior si existe"
+      community.docker.docker_container:
+        name: "{{ app_nombre }}-{{ ambiente }}"
+        state: absent
+      ignore_errors: yes
+      tags: [app, deploy]
+
+    - name: "[APP] Levantar contenedor BancoNova en {{ ambiente }}"
+      community.docker.docker_container:
+        name: "{{ app_nombre }}-{{ ambiente }}"
+        image: "{{ imagen_docker }}:{{ app_version }}"
+        state: started
+        restart_policy: "{{ restart_policy }}"
+        ports:
+          - "{{ puerto_externo }}:{{ puerto_app }}"
+        env:
+          AMBIENTE: "{{ ambiente }}"
+          VERSION: "{{ app_version }}"
+          FLASK_DEBUG: "{{ flask_debug }}"
+          LOG_LEVEL: "{{ log_level }}"
+        volumes:
+          - "/opt/{{ app_nombre }}/logs:/app/logs"
+        labels:
+          proyecto: banconova
+          ambiente: "{{ ambiente }}"
+          version: "{{ app_version }}"
+      tags: [app, deploy]
+
+    - name: "[APP] Esperar a que BancoNova responda"
+      ansible.builtin.uri:
+        url: "http://localhost:{{ puerto_externo }}/health"
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 10
+      delay: 5
+      until: health_check.status == 200
+      tags: [app, deploy, verificar]
+
+    - name: "[APP] Programar limpieza de logs cada semana"
+      ansible.builtin.cron:
+        name: "Limpiar logs BancoNova {{ ambiente }}"
+        weekday: "0"
+        hour: "3"
+        minute: "0"
+        user: banconova
+        job: "find /opt/{{ app_nombre }}/logs -name '*.log' -mtime +7 -delete"
+      tags: [app, cron]
+
+  # ── Handlers: acciones que solo se ejecutan si algo cambia ────
+  handlers:
+
+    - name: Reiniciar Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+      become: yes
+
+    - name: Reiniciar contenedor BancoNova
+      community.docker.docker_container:
+        name: "{{ app_nombre }}-{{ ambiente }}"
+        state: started
+        restart: yes
+      become: yes
+
+  # ── Tareas posteriores: resumen del despliegue ────────────────
+  post_tasks:
+
+    - name: Verificar estado final del contenedor
+      ansible.builtin.command:
+        cmd: "docker ps --filter name={{ app_nombre }}-{{ ambiente }} --format 'table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}'"
+      register: estado_final
+      changed_when: false
+
+    - name: Mostrar resumen final del despliegue
+      ansible.builtin.debug:
+        msg: |
+          ================================================
+            BancoNova desplegado exitosamente
+          ================================================
+            Ambiente  : {{ ambiente | upper }}
+            Version   : {{ app_version }}
+            URL       : {{ app_url }}
+            Contenedor: {{ estado_final.stdout }}
+          ================================================

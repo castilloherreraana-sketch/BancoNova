@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .filter-row{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px}
+  .filter-chip{border:1.5px solid var(--gray-30);border-radius:20px;padding:6px 16px;
+    font-size:12px;font-weight:500;color:var(--gray-60);background:var(--white);
+    white-space:nowrap;text-decoration:none;transition:all .15s}
+  .filter-chip.active{border-color:var(--navy);color:var(--navy);background:#EEF3F9}
+  .devops-banner{background:var(--navy);border-radius:10px;padding:12px 16px;
+    margin-bottom:16px;display:flex;align-items:center;gap:10px}
+  .devops-banner .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);
+    animation:pulse 1.5s infinite;flex-shrink:0}
+  .devops-banner p{font-size:12px;color:rgba(255,255,255,.75);line-height:1.4}
+</style>
+
+<div style="display:flex;flex-direction:column;min-height:100vh">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <a href="/dashboard" style="background:none;border:none;color:rgba(255,255,255,.7);
+        font-size:20px;text-decoration:none;margin-right:6px">←</a>
+      <span>Historial</span>
+    </div>
+    <div class="topbar-user">
+      <div class="avatar">{{ iniciales }}</div>
+      <a href="/logout" class="btn-logout">Salir</a>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <div class="devops-banner">
+      <div class="dot"></div>
+      <p>Pipeline activo — <strong style="color:var(--gold-lt)">BancoNova v{{ version }}</strong>
+        desplegado con GitHub Actions · Ambiente: {{ ambiente | upper }}</p>
+    </div>
+
+    <div class="filter-row">
+      {% for f in ['Todos','Depósitos','Transferencias','Servicios'] %}
+      <a href="/historial?filtro={{ f }}"
+         class="filter-chip {{ 'active' if filtro == f else '' }}">{{ f }}</a>
+      {% endfor %}
+    </div>
+
+    <div class="movement-list">
+      {% if movimientos %}
+        {% for m in movimientos %}
+        <div class="movement">
+          <div class="mov-icon {{ m.tipo }}">{{ m.icono }}</div>
+          <div class="mov-info">
+            <p class="desc">{{ m.desc }}</p>
+            <p class="date">{{ m.fecha }}</p>
+          </div>
+          <p class="mov-amount {{ m.tipo }}">
+            {{ '+' if m.tipo == 'in' else '-' }}${{ "{:,.2f}".format(m.monto) }}
+          </p>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="text-align:center;color:var(--gray-60);padding:32px 0;font-size:14px">
+          Sin movimientos en esta categoría
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="/dashboard" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Inicio
+    </a>
+    <a href="/transferencia" class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Transferir
+    </a>
+    <a href="/pagos" class="nav-item">
+      <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      Pagar
+    </a>
+    <a href="/historial" class="nav-item active">
+      <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></svg>
+      Historial
+    </a>
+  </nav>
+</div>
+{% endblock %}

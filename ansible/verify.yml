@@ -1,0 +1,43 @@
+# ================================================================
+#  BANCONOVA — Playbook de verificación
+#  Verifica que todos los ambientes están corriendo correctamente
+#  Útil para ejecutar después de cada despliegue en el pipeline
+# ================================================================
+---
+
+- name: Verificar estado de BancoNova en todos los ambientes
+  hosts: servidores_banconova
+  become: yes
+
+  tasks:
+
+    - name: Verificar que Docker está corriendo
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+      register: docker_estado
+
+    - name: Verificar contenedor de BancoNova
+      ansible.builtin.command:
+        cmd: "docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_nombre }}-{{ ambiente }}"
+      register: estado_contenedor
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Health check de la aplicación
+      ansible.builtin.uri:
+        url: "http://localhost:{{ puerto_externo }}/health"
+        method: GET
+        status_code: 200
+        return_content: yes
+      register: health_resultado
+      ignore_errors: yes
+
+    - name: Mostrar resumen de verificación
+      ansible.builtin.debug:
+        msg: |
+          ── Verificación {{ ambiente | upper }} ──
+          Docker     : {{ 'OK' if docker_estado.state.running is defined else 'ERROR' }}
+          Contenedor : {{ estado_contenedor.stdout | default('No encontrado') }}
+          Health     : {{ health_resultado.json | default('Sin respuesta') }}
+          URL        : {{ app_url }}

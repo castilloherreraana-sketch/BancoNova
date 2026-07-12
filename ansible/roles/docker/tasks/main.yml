@@ -1,0 +1,95 @@
+# ================================================================
+#  ROL: docker
+#  Instala y configura Docker en el servidor de BancoNova
+#  Garantiza la misma versión en desarrollo y producción
+# ================================================================
+---
+
+# ── 1. Instalar dependencias previas ────────────────────────────
+- name: Instalar dependencias para el repositorio de Docker
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+      - lsb-release
+    state: present
+  become: yes
+
+# ── 2. Agregar clave GPG oficial de Docker ──────────────────────
+- name: Agregar clave GPG oficial de Docker
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  become: yes
+
+# ── 3. Agregar repositorio oficial de Docker ────────────────────
+- name: Agregar repositorio de Docker
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+  become: yes
+
+# ── 4. Instalar Docker Engine ───────────────────────────────────
+- name: Instalar Docker Engine y sus componentes
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+  become: yes
+  notify: Reiniciar Docker
+
+# ── 5. Configurar el daemon de Docker ───────────────────────────
+- name: Crear directorio de configuración de Docker
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Configurar daemon.json con límites de logs
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "{{ docker_log_max_size }}",
+          "max-file": "{{ docker_log_max_file }}"
+        },
+        "live-restore": true
+      }
+    mode: '0644'
+  become: yes
+  notify: Reiniciar Docker
+
+# ── 6. Habilitar Docker como servicio del sistema ───────────────
+- name: Habilitar y arrancar el servicio Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: yes
+    state: started
+  become: yes
+
+# ── 7. Agregar usuario banconova al grupo docker ────────────────
+- name: Agregar usuario banconova al grupo docker
+  ansible.builtin.user:
+    name: banconova
+    groups: docker
+    append: yes
+  become: yes
+
+# ── 8. Verificar instalación ────────────────────────────────────
+- name: Verificar que Docker está instalado y corriendo
+  ansible.builtin.command: docker --version
+  register: docker_version_resultado
+  changed_when: false
+
+- name: Mostrar versión de Docker instalada
+  ansible.builtin.debug:
+    msg: "Docker instalado: {{ docker_version_resultado.stdout }}"

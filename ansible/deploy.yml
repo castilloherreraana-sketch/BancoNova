@@ -1,0 +1,30 @@
+# ================================================================
+#  BANCONOVA — Playbook de despliegue rápido
+#  Solo actualiza la aplicación sin reconfigurar el servidor
+#  Ideal para usar en el pipeline de CI/CD después del primer
+#  despliegue completo con site.yml
+#
+#  Uso:
+#    Todos los ambientes:   ansible-playbook deploy.yml
+#    Solo desarrollo:       ansible-playbook deploy.yml --limit desarrollo
+#    Solo producción:       ansible-playbook deploy.yml --limit produccion
+# ================================================================
+---
+
+- name: Despliegue rápido de BancoNova
+  hosts: servidores_banconova
+  become: yes
+
+  pre_tasks:
+    - name: Mostrar información del despliegue
+      ansible.builtin.debug:
+        msg: "Desplegando BancoNova v{{ app_version }} en {{ ambiente | upper }}"
+
+  roles:
+    - role: banconova_app
+      tags: [deploy]
+
+  post_tasks:
+    - name: Confirmar URL de acceso
+      ansible.builtin.debug:
+        msg: "✓ Aplicación disponible en: {{ app_url }}"

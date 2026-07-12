@@ -1,0 +1,39 @@
+# ================================================================
+#  BANCONOVA — Variables comunes para TODOS los ambientes
+#  Estas variables aplican a desarrollo y producción por igual
+# ================================================================
+
+# ── Información de la aplicación ────────────────────────────────
+app_nombre:       banconova
+app_version:      "1.0.0"
+imagen_docker:    banconova-app
+registry:         ghcr.io/banconova
+
+# ── Configuración del sistema operativo ─────────────────────────
+paquetes_base:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - unzip
+  - python3-pip
+
+# ── Puertos del firewall que deben estar abiertos ───────────────
+puertos_firewall:
+  - "22"       # SSH
+  - "80"       # HTTP
+  - "443"      # HTTPS
+  - "5000"     # Puerto Flask interno
+  - "30001"    # NodePort desarrollo
+  - "30002"    # NodePort producción
+
+# ── Configuración de Docker ─────────────────────────────────────
+docker_version:       "24.0"
+docker_log_max_size:  "10m"
+docker_log_max_file:  "3"
+
+# ── Configuración de la base de datos ───────────────────────────
+db_nombre:    banconova_db
+db_usuario:   banconova_user
+db_puerto:    5432

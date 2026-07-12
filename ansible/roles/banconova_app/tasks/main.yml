@@ -1,0 +1,109 @@
+# ================================================================
+#  ROL: banconova_app
+#  Despliega la aplicación BancoNova usando Docker
+#  Se ejecuta diferente según el ambiente (dev o producción)
+# ================================================================
+---
+
+# ── 1. Crear directorio de la aplicación ────────────────────────
+- name: Crear directorio base de BancoNova
+  ansible.builtin.file:
+    path: "/opt/{{ app_nombre }}"
+    state: directory
+    owner: banconova
+    group: banconova
+    mode: '0755'
+  become: yes
+
+- name: Crear directorio de logs de BancoNova
+  ansible.builtin.file:
+    path: "/opt/{{ app_nombre }}/logs"
+    state: directory
+    owner: banconova
+    group: banconova
+    mode: '0755'
+  become: yes
+
+# ── 2. Crear archivo .env con variables del ambiente ────────────
+- name: Crear archivo .env para el ambiente {{ ambiente }}
+  ansible.builtin.copy:
+    dest: "/opt/{{ app_nombre }}/.env"
+    content: |
+      # Generado automáticamente por Ansible
+      # Ambiente: {{ ambiente }}
+      APP_NOMBRE={{ app_nombre }}
+      APP_VERSION={{ app_version }}
+      AMBIENTE={{ ambiente }}
+      PORT={{ puerto_app }}
+      FLASK_DEBUG={{ flask_debug }}
+      LOG_LEVEL={{ log_level }}
+      SECRET_KEY={{ secret_key | default('banconova-secret-2026') }}
+    owner: banconova
+    group: banconova
+    mode: '0600'
+  become: yes
+  notify: Reiniciar contenedor BancoNova
+
+# ── 3. Detener contenedor anterior si existe ────────────────────
+- name: Detener contenedor anterior de BancoNova (si existe)
+  community.docker.docker_container:
+    name: "{{ app_nombre }}-{{ ambiente }}"
+    state: absent
+  become: yes
+  ignore_errors: yes
+
+# ── 4. Levantar el contenedor con la configuración correcta ─────
+- name: Levantar contenedor BancoNova en {{ ambiente }}
+  community.docker.docker_container:
+    name: "{{ app_nombre }}-{{ ambiente }}"
+    image: "{{ imagen_docker }}:{{ app_version }}"
+    state: started
+    restart_policy: "{{ restart_policy }}"
+    ports:
+      - "{{ puerto_externo }}:{{ puerto_app }}"
+    env:
+      AMBIENTE: "{{ ambiente }}"
+      VERSION: "{{ app_version }}"
+      FLASK_DEBUG: "{{ flask_debug }}"
+      LOG_LEVEL: "{{ log_level }}"
+    volumes:
+      - "/opt/{{ app_nombre }}/logs:/app/logs"
+    labels:
+      proyecto: banconova
+      ambiente: "{{ ambiente }}"
+      version: "{{ app_version }}"
+  become: yes
+
+# ── 5. Esperar a que la app esté lista ──────────────────────────
+- name: Esperar a que BancoNova responda en {{ ambiente }}
+  ansible.builtin.uri:
+    url: "http://localhost:{{ puerto_externo }}/health"
+    method: GET
+    status_code: 200
+  register: health_check
+  retries: 10
+  delay: 5
+  until: health_check.status == 200
+
+# ── 6. Verificar el estado del contenedor ───────────────────────
+- name: Verificar estado del contenedor {{ ambiente }}
+  ansible.builtin.command:
+    cmd: "docker ps --filter name={{ app_nombre }}-{{ ambiente }} --format 'table {{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}\t{{ '{{' }}.Ports{{ '}}' }}'"
+  register: estado_contenedor
+  changed_when: false
+  become: yes
+
+- name: Mostrar estado del contenedor
+  ansible.builtin.debug:
+    msg: "{{ estado_contenedor.stdout }}"
+
+# ── 7. Configurar limpieza automática de logs con cron ──────────
+- name: Programar limpieza de logs cada semana
+  ansible.builtin.cron:
+    name: "Limpiar logs BancoNova {{ ambiente }}"
+    weekday: "0"
+    hour: "3"
+    minute: "0"
+    user: banconova
+    job: "find /opt/{{ app_nombre }}/logs -name '*.log' -mtime +7 -delete"
+  become: yes

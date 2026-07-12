@@ -1,0 +1,7 @@
+---
+- name: Reiniciar contenedor BancoNova
+  community.docker.docker_container:
+    name: "{{ app_nombre }}-{{ ambiente }}"
+    state: started
+    restart: yes
+  become: yes

@@ -1,0 +1,16 @@
+# ================================================================
+#  BANCONOVA — Variables específicas del ambiente PRODUCCIÓN
+# ================================================================
+
+ambiente:         produccion
+puerto_app:       5000
+puerto_externo:   30002
+replicas:         2
+flask_debug:      "false"
+log_level:        INFO
+
+# En producción siempre reinicia si falla
+restart_policy:   always
+
+# URL de acceso al ambiente
+app_url:          "http://localhost:30002"
