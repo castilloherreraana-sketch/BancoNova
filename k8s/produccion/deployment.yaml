@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banconova-app
+  namespace: banconova-produccion
+  labels:
+    app: banconova
+    ambiente: produccion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: banconova
+      ambiente: produccion
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+      # maxUnavailable: 0 garantiza zero downtime
+  template:
+    metadata:
+      labels:
+        app: banconova
+        ambiente: produccion
+    spec:
+      containers:
+      - name: banconova
+        image: banconova-app:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: banconova-config
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10

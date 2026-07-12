@@ -1,0 +1,25 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: banconova-hpa
+  namespace: banconova-produccion
+  labels:
+    app: banconova
+    ambiente: produccion
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: banconova-app
+  minReplicas: 2
+  # minimo 2 pods siempre activos en produccion
+  maxReplicas: 5
+  # maximo 5 pods en picos de carga (quincena)
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+        # si CPU supera 60% agrega pods automaticamente

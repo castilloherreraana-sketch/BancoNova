@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banconova-app
+  namespace: banconova-desarrollo
+  labels:
+    app: banconova
+    ambiente: desarrollo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: banconova
+      ambiente: desarrollo
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: banconova
+        ambiente: desarrollo
+    spec:
+      containers:
+      - name: banconova
+        image: banconova-app:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: banconova-config
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "300m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
