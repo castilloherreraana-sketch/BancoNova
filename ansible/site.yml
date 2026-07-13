@@ -12,7 +12,7 @@
 
 - name: Configurar servidores de BancoNova
   hosts: servidores_banconova
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Mostrar información del servidor

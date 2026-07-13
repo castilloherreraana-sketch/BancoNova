@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+.git/
+.gitignore
+*.md
+app/banconova/
+venv/
+.venv/
+ansible/
+k8s/
+terraform/
+scripts/
+docker/
+.github/

@@ -15,12 +15,12 @@
 
 - name: Configuracion completa de servidores BancoNova
   hosts: servidores_banconova
-  become: yes
+  become: true
 
   # ── Variables adicionales del playbook ────────────────────────
   vars:
-    app_nombre:    banconova
-    app_version:   "1.0.0"
+    app_nombre: banconova
+    app_version: "1.0.0"
     imagen_docker: banconova-app
 
   # ── Tareas previas: mostrar informacion del servidor ──────────
@@ -57,7 +57,7 @@
     # ── 1.1 Actualizar paquetes del sistema ─────────────────────
     - name: "[BASE] Actualizar lista de paquetes"
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
         cache_valid_time: 3600
       tags: [base, siempre]
 
@@ -96,7 +96,7 @@
         name: "{{ app_nombre }}"
         group: "{{ app_nombre }}"
         shell: /bin/bash
-        create_home: yes
+        create_home: true
         comment: "Usuario de sistema BancoNova"
       tags: [base, siempre]
 
@@ -123,19 +123,19 @@
 
     # ── 1.5 Ajustar parametros del kernel ───────────────────────
     - name: "[BASE] Habilitar bridge-nf-call-iptables para K8s"
-      ansible.builtin.sysctl:
+      ansible.posix.sysctl:
         name: net.bridge.bridge-nf-call-iptables
         value: "1"
         state: present
-        reload: yes
+        reload: true
       tags: [base, kernel]
 
     - name: "[BASE] Habilitar IP forwarding para contenedores"
-      ansible.builtin.sysctl:
+      ansible.posix.sysctl:
         name: net.ipv4.ip_forward
         value: "1"
         state: present
-        reload: yes
+        reload: true
       tags: [base, kernel]
 
     # ── BLOQUE 2: Instalacion de Docker ─────────────────────────
@@ -161,7 +161,7 @@
           - docker-buildx-plugin
           - docker-compose-plugin
         state: present
-        update_cache: yes
+        update_cache: true
       notify: Reiniciar Docker
       tags: [docker]
 
@@ -191,7 +191,7 @@
     - name: "[DOCKER] Habilitar y arrancar servicio Docker"
       ansible.builtin.systemd:
         name: docker
-        enabled: yes
+        enabled: true
         state: started
       tags: [docker]
 
@@ -199,7 +199,7 @@
       ansible.builtin.user:
         name: banconova
         groups: docker
-        append: yes
+        append: true
       tags: [docker]
 
     - name: "[DOCKER] Verificar instalacion de Docker"
@@ -255,7 +255,6 @@
       community.docker.docker_container:
         name: "{{ app_nombre }}-{{ ambiente }}"
         state: absent
-      ignore_errors: yes
       tags: [app, deploy]
 
     - name: "[APP] Levantar contenedor BancoNova en {{ ambiente }}"
@@ -307,21 +306,23 @@
       ansible.builtin.systemd:
         name: docker
         state: restarted
-      become: yes
+      become: true
 
     - name: Reiniciar contenedor BancoNova
       community.docker.docker_container:
         name: "{{ app_nombre }}-{{ ambiente }}"
         state: started
-        restart: yes
-      become: yes
+        restart: true
+        comparisons:
+          '*': ignore
+      become: true
 
   # ── Tareas posteriores: resumen del despliegue ────────────────
   post_tasks:
 
     - name: Verificar estado final del contenedor
       ansible.builtin.command:
-        cmd: "docker ps --filter name={{ app_nombre }}-{{ ambiente }} --format 'table {% raw %}{{.Names}}\t{{.Status}}\t{{.Ports}}{% endraw %}'"
+        cmd: "docker ps --filter name={{ app_nombre }}-{{ ambiente }}"
       register: estado_final
       changed_when: false
 

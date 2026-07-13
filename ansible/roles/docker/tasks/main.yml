@@ -14,21 +14,21 @@
       - gnupg
       - lsb-release
     state: present
-  become: yes
+  become: true
 
 # ── 2. Agregar clave GPG oficial de Docker ──────────────────────
 - name: Agregar clave GPG oficial de Docker
   ansible.builtin.apt_key:
     url: https://download.docker.com/linux/ubuntu/gpg
     state: present
-  become: yes
+  become: true
 
 # ── 3. Agregar repositorio oficial de Docker ────────────────────
 - name: Agregar repositorio de Docker
   ansible.builtin.apt_repository:
     repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
     state: present
-  become: yes
+  become: true
 
 # ── 4. Instalar Docker Engine ───────────────────────────────────
 - name: Instalar Docker Engine y sus componentes
@@ -40,8 +40,8 @@
       - docker-buildx-plugin
       - docker-compose-plugin
     state: present
-    update_cache: yes
-  become: yes
+    update_cache: true
+  become: true
   notify: Reiniciar Docker
 
 # ── 5. Configurar el daemon de Docker ───────────────────────────
@@ -50,7 +50,7 @@
     path: /etc/docker
     state: directory
     mode: '0755'
-  become: yes
+  become: true
 
 - name: Configurar daemon.json con límites de logs
   ansible.builtin.copy:
@@ -65,24 +65,24 @@
         "live-restore": true
       }
     mode: '0644'
-  become: yes
+  become: true
   notify: Reiniciar Docker
 
 # ── 6. Habilitar Docker como servicio del sistema ───────────────
 - name: Habilitar y arrancar el servicio Docker
   ansible.builtin.systemd:
     name: docker
-    enabled: yes
+    enabled: true
     state: started
-  become: yes
+  become: true
 
 # ── 7. Agregar usuario banconova al grupo docker ────────────────
 - name: Agregar usuario banconova al grupo docker
   ansible.builtin.user:
     name: banconova
     groups: docker
-    append: yes
-  become: yes
+    append: true
+  become: true
 
 # ── 8. Verificar instalación ────────────────────────────────────
 - name: Verificar que Docker está instalado y corriendo

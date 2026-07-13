@@ -7,7 +7,7 @@
 
 - name: Verificar estado de BancoNova en todos los ambientes
   hosts: servidores_banconova
-  become: yes
+  become: true
 
   tasks:
 
@@ -22,16 +22,16 @@
         cmd: "docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ app_nombre }}-{{ ambiente }}"
       register: estado_contenedor
       changed_when: false
-      ignore_errors: yes
+      failed_when: false
 
     - name: Health check de la aplicación
       ansible.builtin.uri:
         url: "http://localhost:{{ puerto_externo }}/health"
         method: GET
         status_code: 200
-        return_content: yes
+        return_content: true
       register: health_resultado
-      ignore_errors: yes
+      failed_when: false
 
     - name: Mostrar resumen de verificación
       ansible.builtin.debug:

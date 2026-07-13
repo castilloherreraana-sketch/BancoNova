@@ -8,50 +8,50 @@
 # ── 1. Actualizar paquetes del sistema ──────────────────────────
 - name: Actualizar lista de paquetes
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
-  become: yes
+  become: true
 
 - name: Actualizar todos los paquetes a la última versión
   ansible.builtin.apt:
     upgrade: dist
-  become: yes
+  become: true
 
 # ── 2. Instalar herramientas base ───────────────────────────────
 - name: Instalar paquetes esenciales
   ansible.builtin.apt:
     name: "{{ paquetes_base }}"
     state: present
-  become: yes
+  become: true
 
 # ── 3. Crear usuario de sistema para BancoNova ──────────────────
 - name: Crear grupo banconova
   ansible.builtin.group:
     name: "{{ app_nombre }}"
     state: present
-  become: yes
+  become: true
 
 - name: Crear usuario banconova sin privilegios de root
   ansible.builtin.user:
     name: "{{ app_nombre }}"
     group: "{{ app_nombre }}"
     shell: /bin/bash
-    create_home: yes
+    create_home: true
     comment: "Usuario de sistema BancoNova"
-  become: yes
+  become: true
 
 # ── 4. Configurar el firewall UFW ───────────────────────────────
 - name: Instalar UFW
   ansible.builtin.apt:
     name: ufw
     state: present
-  become: yes
+  become: true
 
 - name: Habilitar UFW y establecer política por defecto
   community.general.ufw:
     state: enabled
     policy: deny
-  become: yes
+  become: true
 
 - name: Abrir puertos necesarios en el firewall
   community.general.ufw:
@@ -59,30 +59,30 @@
     port: "{{ item }}"
     proto: tcp
   loop: "{{ puertos_firewall }}"
-  become: yes
+  become: true
 
 # ── 5. Ajustar parámetros del kernel para Docker y K8s ─────────
 - name: Habilitar bridge-nf-call-iptables para Kubernetes
-  ansible.builtin.sysctl:
+  ansible.posix.sysctl:
     name: net.bridge.bridge-nf-call-iptables
     value: "1"
     state: present
-    reload: yes
-  become: yes
+    reload: true
+  become: true
 
 - name: Habilitar IP forwarding para los contenedores
-  ansible.builtin.sysctl:
+  ansible.posix.sysctl:
     name: net.ipv4.ip_forward
     value: "1"
     state: present
-    reload: yes
-  become: yes
+    reload: true
+  become: true
 
 # ── 6. Configurar zona horaria ──────────────────────────────────
 - name: Establecer zona horaria a America/Mexico_City
   community.general.timezone:
     name: America/Mexico_City
-  become: yes
+  become: true
   notify: Reiniciar cron
 
 # ── 7. Verificar configuración ──────────────────────────────────

@@ -13,7 +13,7 @@
 
 - name: Despliegue rápido de BancoNova
   hosts: servidores_banconova
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Mostrar información del despliegue

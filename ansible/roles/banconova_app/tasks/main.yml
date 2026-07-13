@@ -13,7 +13,7 @@
     owner: banconova
     group: banconova
     mode: '0755'
-  become: yes
+  become: true
 
 - name: Crear directorio de logs de BancoNova
   ansible.builtin.file:
@@ -22,7 +22,7 @@
     owner: banconova
     group: banconova
     mode: '0755'
-  become: yes
+  become: true
 
 # ── 2. Crear archivo .env con variables del ambiente ────────────
 - name: Crear archivo .env para el ambiente {{ ambiente }}
@@ -41,7 +41,7 @@
     owner: banconova
     group: banconova
     mode: '0600'
-  become: yes
+  become: true
   notify: Reiniciar contenedor BancoNova
 
 # ── 3. Detener contenedor anterior si existe ────────────────────
@@ -49,8 +49,7 @@
   community.docker.docker_container:
     name: "{{ app_nombre }}-{{ ambiente }}"
     state: absent
-  become: yes
-  ignore_errors: yes
+  become: true
 
 # ── 4. Levantar el contenedor con la configuración correcta ─────
 - name: Levantar contenedor BancoNova en {{ ambiente }}
@@ -72,7 +71,7 @@
       proyecto: banconova
       ambiente: "{{ ambiente }}"
       version: "{{ app_version }}"
-  become: yes
+  become: true
 
 # ── 5. Esperar a que la app esté lista ──────────────────────────
 - name: Esperar a que BancoNova responda en {{ ambiente }}
@@ -88,10 +87,10 @@
 # ── 6. Verificar el estado del contenedor ───────────────────────
 - name: Verificar estado del contenedor {{ ambiente }}
   ansible.builtin.command:
-    cmd: "docker ps --filter name={{ app_nombre }}-{{ ambiente }} --format 'table {{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}\t{{ '{{' }}.Ports{{ '}}' }}'"
+    cmd: "docker ps --filter name={{ app_nombre }}-{{ ambiente }}"
   register: estado_contenedor
   changed_when: false
-  become: yes
+  become: true
 
 - name: Mostrar estado del contenedor
   ansible.builtin.debug:
@@ -106,4 +105,4 @@
     minute: "0"
     user: banconova
     job: "find /opt/{{ app_nombre }}/logs -name '*.log' -mtime +7 -delete"
-  become: yes
+  become: true

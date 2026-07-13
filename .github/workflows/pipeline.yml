@@ -50,6 +50,7 @@ jobs:
       - name: Construir imagen Docker
         run: |
           docker build \
+            -f docker/Dockerfile \
             -t ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }} \
             -t ${{ env.IMAGEN_DOCKER }}:${{ github.sha }} \
             -t ${{ env.IMAGEN_DOCKER }}:latest .

@@ -1,5 +1,5 @@
 ---
 # Valores por defecto del rol banconova_app
 restart_policy: unless-stopped
-flask_debug:    "false"
-log_level:      INFO
+flask_debug: "false"
+log_level: INFO
