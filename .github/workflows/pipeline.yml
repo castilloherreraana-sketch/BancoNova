@@ -85,6 +85,9 @@ jobs:
       - name: Cargar imagen Docker
         run: docker load < banconova-imagen.tar
 
+      - name: Etiquetar imagen con version de la app
+        run: docker tag ${{ env.IMAGEN_DOCKER }}:latest ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
+
       - name: Instalar Ansible y colecciones
         run: |
           sudo apt-get update -y
@@ -131,6 +134,9 @@ jobs:
 
       - name: Cargar imagen Docker
         run: docker load < banconova-imagen.tar
+
+      - name: Etiquetar imagen con version de la app
+        run: docker tag ${{ env.IMAGEN_DOCKER }}:latest ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
 
       - name: Instalar Ansible y colecciones
         run: |
