@@ -62,6 +62,19 @@
   become: true
 
 # ── 5. Ajustar parámetros del kernel para Docker y K8s ─────────
+- name: Cargar el módulo del kernel br_netfilter
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+  become: true
+
+- name: Asegurar que br_netfilter se cargue en el arranque
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/br_netfilter.conf
+    content: "br_netfilter\n"
+    mode: '0644'
+  become: true
+
 - name: Habilitar bridge-nf-call-iptables para Kubernetes
   ansible.posix.sysctl:
     name: net.bridge.bridge-nf-call-iptables

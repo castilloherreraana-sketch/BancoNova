@@ -122,6 +122,19 @@
       tags: [base, firewall]
 
     # ── 1.5 Ajustar parametros del kernel ───────────────────────
+    - name: "[BASE] Cargar el modulo del kernel br_netfilter"
+      community.general.modprobe:
+        name: br_netfilter
+        state: present
+      tags: [base, kernel]
+
+    - name: "[BASE] Asegurar que br_netfilter se cargue en el arranque"
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/br_netfilter.conf
+        content: "br_netfilter\n"
+        mode: '0644'
+      tags: [base, kernel]
+
     - name: "[BASE] Habilitar bridge-nf-call-iptables para K8s"
       ansible.posix.sysctl:
         name: net.bridge.bridge-nf-call-iptables
