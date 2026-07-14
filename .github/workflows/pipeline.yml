@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 env:
   APP_NOMBRE:     banconova
@@ -42,7 +43,7 @@ jobs:
     name: Construir imagen Docker
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout codigo
         uses: actions/checkout@v4
@@ -69,7 +70,7 @@ jobs:
     name: Deploy a Desarrollo
     runs-on: ubuntu-latest
     needs: docker
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/develop' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
       name: desarrollo
       url: http://localhost:30001
@@ -119,7 +120,7 @@ jobs:
     name: Deploy a Produccion
     runs-on: ubuntu-latest
     needs: deploy-desarrollo
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
       name: produccion
       url: http://localhost:30002
