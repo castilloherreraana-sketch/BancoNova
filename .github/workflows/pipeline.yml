@@ -71,7 +71,7 @@ jobs:
 
   deploy-desarrollo:
     name: Deploy a Desarrollo
-    runs-on: [self-hosted, "${{ vars.RUNNER_LABEL }}"]
+    runs-on: self-hosted
     needs: docker
     if: github.ref == 'refs/heads/develop' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
@@ -120,7 +120,7 @@ jobs:
 
   deploy-produccion:
     name: Deploy a Produccion
-    runs-on: [self-hosted, "${{ vars.RUNNER_LABEL }}"]
+    runs-on: self-hosted
     needs: deploy-desarrollo
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
