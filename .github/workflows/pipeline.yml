@@ -68,7 +68,7 @@ jobs:
 
   deploy-desarrollo:
     name: Deploy a Desarrollo
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, "${{ vars.RUNNER_LABEL }}"]
     needs: docker
     if: github.ref == 'refs/heads/develop' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
@@ -89,10 +89,9 @@ jobs:
       - name: Etiquetar imagen con version de la app
         run: docker tag ${{ env.IMAGEN_DOCKER }}:latest ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
 
-      - name: Instalar Ansible y colecciones
+      - name: Instalar Ansible y colecciones (si hace falta)
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ansible
+          command -v ansible-playbook >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ansible)
           cd ansible && ansible-galaxy collection install -r requirements.yml
 
       - name: Ejecutar playbook en Desarrollo
@@ -100,7 +99,7 @@ jobs:
           cd ansible
           ansible-playbook playbook.yml \
             --limit desarrollo \
-            --extra-vars "app_version=${{ env.APP_VERSION }}" -v
+            --extra-vars "app_version=${{ env.APP_VERSION }} secret_key=${{ secrets.SECRET_KEY }}" -v
 
       - name: Aplicar manifiestos K8s en Desarrollo
         run: |
@@ -118,7 +117,7 @@ jobs:
 
   deploy-produccion:
     name: Deploy a Produccion
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, "${{ vars.RUNNER_LABEL }}"]
     needs: deploy-desarrollo
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
@@ -139,10 +138,9 @@ jobs:
       - name: Etiquetar imagen con version de la app
         run: docker tag ${{ env.IMAGEN_DOCKER }}:latest ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
 
-      - name: Instalar Ansible y colecciones
+      - name: Instalar Ansible y colecciones (si hace falta)
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ansible
+          command -v ansible-playbook >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ansible)
           cd ansible && ansible-galaxy collection install -r requirements.yml
 
       - name: Ejecutar playbook en Produccion
@@ -150,7 +148,7 @@ jobs:
           cd ansible
           ansible-playbook playbook.yml \
             --limit produccion \
-            --extra-vars "app_version=${{ env.APP_VERSION }}" -v
+            --extra-vars "app_version=${{ env.APP_VERSION }} secret_key=${{ secrets.SECRET_KEY }}" -v
 
       - name: Aplicar manifiestos K8s en Produccion
         run: |
