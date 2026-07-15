@@ -25,9 +25,10 @@ ENV FLASK_DEBUG=false
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://localhost:5000/health || exit 1
+  CMD wget -qO- http://localhost:${PORT}/health || exit 1
 
 USER banconova
 
 # Usar gunicorn en produccion para mayor rendimiento
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "app:app"]
+# Forma shell (no exec) para que ${PORT} se expanda segun el ambiente (5000 en desarrollo, 6000 en produccion)
+CMD gunicorn --bind 0.0.0.0:${PORT} --workers 2 app:app

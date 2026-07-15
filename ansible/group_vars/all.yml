@@ -24,7 +24,8 @@ puertos_firewall:
   - "22"       # SSH
   - "80"       # HTTP
   - "443"      # HTTPS
-  - "5000"     # Puerto Flask interno
+  - "5000"     # Puerto Flask interno (desarrollo)
+  - "6000"     # Puerto Flask interno (producción)
   - "30001"    # NodePort desarrollo
   - "30002"    # NodePort producción
 
