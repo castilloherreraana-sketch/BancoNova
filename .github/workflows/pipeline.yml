@@ -126,7 +126,7 @@ jobs:
   deploy-produccion:
     name: Deploy a Produccion
     runs-on: self-hosted
-    needs: deploy-desarrollo
+    needs: docker
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
       name: produccion
