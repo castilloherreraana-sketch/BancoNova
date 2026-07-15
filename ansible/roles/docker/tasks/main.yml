@@ -17,16 +17,26 @@
   become: true
 
 # ── 2. Agregar clave GPG oficial de Docker ──────────────────────
-- name: Agregar clave GPG oficial de Docker
-  ansible.builtin.apt_key:
+# apt_key/el binario "apt-key" ya no viene instalado en Ubuntu recientes;
+# se usa el metodo moderno de keyring + signed-by en el repositorio.
+- name: Crear directorio para llaves APT
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Descargar y agregar la clave GPG oficial de Docker
+  ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
   become: true
 
 # ── 3. Agregar repositorio oficial de Docker ────────────────────
 - name: Agregar repositorio de Docker
   ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
     state: present
   become: true
 
