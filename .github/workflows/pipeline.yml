@@ -109,6 +109,10 @@ jobs:
             --limit desarrollo \
             --extra-vars "app_version=${{ env.APP_VERSION }} secret_key=${{ secrets.SECRET_KEY }}" -v
 
+      - name: Actualizar version en ConfigMap de Desarrollo
+        run: |
+          sed -i "s/VERSION:.*/VERSION:     \"${{ env.APP_VERSION }}\"/" k8s/desarrollo/configmap.yaml
+
       - name: Aplicar manifiestos K8s en Desarrollo
         run: |
           kubectl apply -f k8s/desarrollo/namespace.yaml
@@ -162,6 +166,10 @@ jobs:
           ansible-playbook playbook.yml \
             --limit produccion \
             --extra-vars "app_version=${{ env.APP_VERSION }} secret_key=${{ secrets.SECRET_KEY }}" -v
+
+      - name: Actualizar version en ConfigMap de Produccion
+        run: |
+          sed -i "s/VERSION:.*/VERSION:     \"${{ env.APP_VERSION }}\"/" k8s/produccion/configmap.yaml
 
       - name: Aplicar manifiestos K8s en Produccion
         run: |
