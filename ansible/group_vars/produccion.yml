@@ -3,7 +3,7 @@
 # ================================================================
 
 ambiente:         produccion
-puerto_app:       5000
+puerto_app:       6000
 puerto_externo:   30002
 replicas:         2
 flask_debug:      "false"

@@ -9,6 +9,6 @@ metadata:
 data:
   AMBIENTE:    "produccion"
   VERSION:     "1.0.0"
-  PORT:        "5000"
+  PORT:        "6000"
   FLASK_DEBUG: "false"
   LOG_LEVEL:   "INFO"
