@@ -48,6 +48,8 @@ SERVICIOS = [
     {'nombre': 'TOTALPLAY', 'emoji': '📡', 'desc': 'TV + Net'},
     {'nombre': 'Agua',      'emoji': '💧', 'desc': 'SACMEX'},
     {'nombre': 'Gas',       'emoji': '🔥', 'desc': 'Gas Natural'},
+        #se agrego el servicio de Netflix
+    {'nombre': 'Netflix',   'emoji': '🎬', 'desc': 'Streaming'},
 ]
 
 # ================================================================
