@@ -44,7 +44,7 @@ jobs:
 
   docker:
     name: Construir imagen Docker
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: build
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
@@ -91,6 +91,11 @@ jobs:
 
       - name: Etiquetar imagen con version de la app
         run: docker tag ${{ env.IMAGEN_DOCKER }}:latest ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
+
+      - name: Cargar imagen dentro de minikube  
+        run: |
+          minikube image load ${{ env.IMAGEN_DOCKER }}:latest
+          minikube image load ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
 
       - name: Instalar Ansible y colecciones (si hace falta)
         run: |
@@ -140,6 +145,11 @@ jobs:
 
       - name: Etiquetar imagen con version de la app
         run: docker tag ${{ env.IMAGEN_DOCKER }}:latest ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
+
+      - name: Cargar imagen dentro de minikube  
+        run: |
+          minikube image load ${{ env.IMAGEN_DOCKER }}:latest
+          minikube image load ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}  
 
       - name: Instalar Ansible y colecciones (si hace falta)
         run: |
