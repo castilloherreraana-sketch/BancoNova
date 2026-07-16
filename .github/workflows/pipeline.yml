@@ -124,8 +124,9 @@ jobs:
       - name: Verificar despliegue Desarrollo
         run: |
           sleep 10
-          curl -f http://localhost:30001/health || echo "Health check pendiente"
-          echo "Desarrollo disponible en: http://localhost:30001"
+          MINIKUBE_IP=$(minikube ip)
+          curl -f http://${MINIKUBE_IP}:30001/health || echo "Health check pendiente"
+          echo "Desarrollo disponible en: http://${MINIKUBE_IP}:30001"
 
   deploy-produccion:
     name: Deploy a Produccion
@@ -183,11 +184,13 @@ jobs:
       - name: Verificar despliegue Produccion
         run: |
           sleep 10
-          curl -f http://localhost:30002/health || echo "Health check pendiente"
-          echo "Produccion disponible en: http://localhost:30002"
+          MINIKUBE_IP=$(minikube ip)
+          curl -f http://${MINIKUBE_IP}:30002/health || echo "Health check pendiente"
+          echo "Produccion disponible en: http://${MINIKUBE_IP}:30002"
 
       - name: Notificar despliegue exitoso
         run: |
+          MINIKUBE_IP=$(minikube ip)
           echo "BancoNova v${{ env.APP_VERSION }} desplegado en produccion"
           echo "Commit: ${{ github.sha }}"
-          echo "URL: http://localhost:30002"
+          echo "URL: http://${MINIKUBE_IP}:30002"
