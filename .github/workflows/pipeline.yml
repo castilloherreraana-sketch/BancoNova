@@ -1,12 +1,17 @@
+# Pipeline de CI/CD de BancoNova.
+# Se dispara con cada push a main/develop, en pull requests hacia main,
+# o manualmente desde la pestana "Actions" de GitHub (workflow_dispatch).
+# Los jobs se encadenan asi: build -> docker -> deploy-desarrollo -> deploy-produccion.
 name: BancoNova CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop]   # cualquier push a estas ramas dispara el pipeline
   pull_request:
-    branches: [main]
-  workflow_dispatch:
+    branches: [main]            # los PR hacia main solo corren el job "build" (ver "needs"/"if" mas abajo)
+  workflow_dispatch:            # permite lanzar el pipeline a mano desde GitHub
 
+# Variables compartidas por todos los jobs (nombre de la app, version, nombre de la imagen Docker, etc.)
 env:
   APP_NOMBRE:     banconova
   APP_VERSION:    "1.0.0"
@@ -15,12 +20,15 @@ env:
 
 jobs:
 
+  # 1) Job "build": instala dependencias de la app Flask y corre linting/tests.
+  #    Se ejecuta siempre (push, PR o manual). No falla el pipeline aunque
+  #    flake8 o pytest encuentren problemas (ver los "|| true" / "|| echo" mas abajo).
   build:
     name: Build y pruebas
     runs-on: self-hosted
     steps:
       - name: Checkout codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4   # descarga el codigo del repo en el runner
 
       - name: Configurar Python
         uses: actions/setup-python@v4
@@ -34,14 +42,22 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov flake8
 
+      # Revisa el estilo del codigo con flake8. El "|| true" hace que este paso
+      # nunca falle el job, aunque encuentre errores de estilo.
       - name: Analisis de calidad (flake8)
         working-directory: app
         run: flake8 app.py --max-line-length=120 --ignore=E501 || true
 
+      # Corre los tests con pytest. Hoy no hay tests reales, asi que si pytest
+      # falla (o no encuentra nada que correr) el "|| echo" evita romper el pipeline.
       - name: Ejecutar pruebas
         working-directory: app
         run: pytest --tb=short -v || echo "Sin pruebas definidas aun"
 
+  # 2) Job "docker": construye la imagen Docker de la app y la guarda como
+  #    artefacto del workflow para que los jobs de deploy la reutilicen
+  #    (asi no se reconstruye la imagen dos veces).
+  #    Solo corre en push o disparo manual, NO en pull requests.
   docker:
     name: Construir imagen Docker
     runs-on: self-hosted
@@ -51,6 +67,9 @@ jobs:
       - name: Checkout codigo
         uses: actions/checkout@v4
 
+      # El contexto de build es la raiz del repo (no docker/), por eso el
+      # Dockerfile referencia rutas tipo "app/...". Se etiqueta la imagen
+      # tres veces: por version, por commit (sha) y como "latest".
       - name: Construir imagen Docker
         run: |
           docker build \
@@ -59,9 +78,12 @@ jobs:
             -t ${{ env.IMAGEN_DOCKER }}:${{ github.sha }} \
             -t ${{ env.IMAGEN_DOCKER }}:latest .
 
+      # Exporta la imagen "latest" a un archivo .tar para poder subirla como artefacto.
       - name: Guardar imagen como artefacto
         run: docker save ${{ env.IMAGEN_DOCKER }}:latest > banconova-imagen.tar
 
+      # Sube el .tar como artefacto del workflow (se guarda solo 1 dia) para
+      # que los jobs "deploy-desarrollo" y "deploy-produccion" lo descarguen.
       - name: Subir imagen como artefacto
         uses: actions/upload-artifact@v4
         with:
@@ -69,6 +91,11 @@ jobs:
           path: banconova-imagen.tar
           retention-days: 1
 
+  # 3) Job "deploy-desarrollo": despliega al ambiente de Desarrollo dentro de
+  #    minikube. Solo corre si el push fue a la rama "develop" (o disparo manual).
+  #    Pasos, en orden: bajar la imagen construida antes -> cargarla en minikube
+  #    -> configurar el servidor con Ansible -> aplicar los manifiestos de k8s
+  #    -> verificar que el health check responda.
   deploy-desarrollo:
     name: Deploy a Desarrollo
     runs-on: self-hosted
@@ -81,27 +108,36 @@ jobs:
       - name: Checkout codigo
         uses: actions/checkout@v4
 
+      # Trae de vuelta el .tar de imagen que subio el job "docker".
       - name: Descargar imagen Docker
         uses: actions/download-artifact@v4
         with:
           name: banconova-imagen-docker
 
+      # Importa esa imagen al Docker local del runner.
       - name: Cargar imagen Docker
         run: docker load < banconova-imagen.tar
 
       - name: Etiquetar imagen con version de la app
         run: docker tag ${{ env.IMAGEN_DOCKER }}:latest ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
 
-      - name: Cargar imagen dentro de minikube  
+      # Los deployments de k8s usan imagePullPolicy: Never, o sea que la imagen
+      # tiene que existir DENTRO del cluster minikube, no solo en el Docker del host.
+      - name: Cargar imagen dentro de minikube
         run: |
           minikube image load ${{ env.IMAGEN_DOCKER }}:latest
           minikube image load ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
 
+      # Se asegura de que Ansible este instalado en el runner y de que esten
+      # las colecciones que usan los playbooks (requirements.yml).
       - name: Instalar Ansible y colecciones (si hace falta)
         run: |
           command -v ansible-playbook >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ansible)
           cd ansible && ansible-galaxy collection install -r requirements.yml
 
+      # Corre el playbook monolitico contra el host "desarrollo" (ver
+      # ansible/inventory.ini). Le pasa la version de la app y el SECRET_KEY
+      # como variables, sin dejarlos hardcodeados en el repo.
       - name: Ejecutar playbook en Desarrollo
         run: |
           cd ansible
@@ -109,6 +145,14 @@ jobs:
             --limit desarrollo \
             --extra-vars "app_version=${{ env.APP_VERSION }} secret_key=${{ secrets.SECRET_KEY }}" -v
 
+      # Reescribe el valor de VERSION en el ConfigMap para que quede en sync
+      # con APP_VERSION antes de aplicar los manifiestos de k8s.
+      - name: Actualizar version en ConfigMap de Desarrollo
+        run: |
+          sed -i "s/VERSION:.*/VERSION:     \"${{ env.APP_VERSION }}\"/" k8s/desarrollo/configmap.yaml
+
+      # Aplica los manifiestos de k8s de Desarrollo en orden (namespace primero)
+      # y espera a que el rollout del deployment termine antes de seguir.
       - name: Aplicar manifiestos K8s en Desarrollo
         run: |
           kubectl apply -f k8s/desarrollo/namespace.yaml
@@ -117,12 +161,22 @@ jobs:
           kubectl apply -f k8s/desarrollo/service.yaml
           kubectl rollout status deployment/banconova-app -n banconova-desarrollo
 
+      # Chequeo final: espera 10s a que el pod arranque y pega al endpoint
+      # /health a traves del NodePort 30001 de minikube. Si falla, no rompe
+      # el job (solo informa "pendiente"), asi que no es un gate estricto.
       - name: Verificar despliegue Desarrollo
         run: |
           sleep 10
-          curl -f http://localhost:30001/health || echo "Health check pendiente"
-          echo "Desarrollo disponible en: http://localhost:30001"
+          MINIKUBE_IP=$(minikube ip)
+          curl -f http://${MINIKUBE_IP}:30001/health || echo "Health check pendiente"
+          echo "Desarrollo disponible en: http://${MINIKUBE_IP}:30001"
 
+  # 4) Job "deploy-produccion": el mismo patron que Desarrollo pero apuntando
+  #    al host/namespace "produccion" y al NodePort 30002. Solo corre en push
+  #    a "main", y GRACIAS a "needs: docker" (no needs: deploy-desarrollo)
+  #    tecnicamente podria correr en paralelo con Desarrollo si ambas ramas
+  #    recibieran push a la vez -- en la practica solo se llega a main
+  #    despues de mergear develop, asi que Desarrollo ya paso primero.
   deploy-produccion:
     name: Deploy a Produccion
     runs-on: self-hosted
@@ -135,27 +189,33 @@ jobs:
       - name: Checkout codigo
         uses: actions/checkout@v4
 
+      # Trae de vuelta el .tar de imagen que subio el job "docker".
       - name: Descargar imagen Docker
         uses: actions/download-artifact@v4
         with:
           name: banconova-imagen-docker
 
+      # Importa esa imagen al Docker local del runner.
       - name: Cargar imagen Docker
         run: docker load < banconova-imagen.tar
 
       - name: Etiquetar imagen con version de la app
         run: docker tag ${{ env.IMAGEN_DOCKER }}:latest ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
 
-      - name: Cargar imagen dentro de minikube  
+      # Igual que en Desarrollo: la imagen tiene que quedar cargada dentro de
+      # minikube porque los deployments usan imagePullPolicy: Never.
+      - name: Cargar imagen dentro de minikube
         run: |
           minikube image load ${{ env.IMAGEN_DOCKER }}:latest
-          minikube image load ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}  
+          minikube image load ${{ env.IMAGEN_DOCKER }}:${{ env.APP_VERSION }}
 
       - name: Instalar Ansible y colecciones (si hace falta)
         run: |
           command -v ansible-playbook >/dev/null || (sudo apt-get update -y && sudo apt-get install -y ansible)
           cd ansible && ansible-galaxy collection install -r requirements.yml
 
+      # Corre el mismo playbook.yml pero con --limit produccion, que usa las
+      # variables de ansible/group_vars/produccion.yml (puerto, replicas, etc.).
       - name: Ejecutar playbook en Produccion
         run: |
           cd ansible
@@ -163,6 +223,12 @@ jobs:
             --limit produccion \
             --extra-vars "app_version=${{ env.APP_VERSION }} secret_key=${{ secrets.SECRET_KEY }}" -v
 
+      - name: Actualizar version en ConfigMap de Produccion
+        run: |
+          sed -i "s/VERSION:.*/VERSION:     \"${{ env.APP_VERSION }}\"/" k8s/produccion/configmap.yaml
+
+      # A diferencia de Desarrollo, Produccion tambien aplica hpa.yaml
+      # (autoescalado 2-5 replicas al 60% de CPU).
       - name: Aplicar manifiestos K8s en Produccion
         run: |
           kubectl apply -f k8s/produccion/namespace.yaml
@@ -172,14 +238,19 @@ jobs:
           kubectl apply -f k8s/produccion/hpa.yaml
           kubectl rollout status deployment/banconova-app -n banconova-produccion
 
+      # Mismo chequeo de salud que en Desarrollo, pero contra el NodePort 30002.
       - name: Verificar despliegue Produccion
         run: |
           sleep 10
-          curl -f http://localhost:30002/health || echo "Health check pendiente"
-          echo "Produccion disponible en: http://localhost:30002"
+          MINIKUBE_IP=$(minikube ip)
+          curl -f http://${MINIKUBE_IP}:30002/health || echo "Health check pendiente"
+          echo "Produccion disponible en: http://${MINIKUBE_IP}:30002"
 
+      # Ultimo paso: solo imprime un resumen del despliegue en los logs del
+      # job (no manda notificaciones reales a ningun servicio externo).
       - name: Notificar despliegue exitoso
         run: |
+          MINIKUBE_IP=$(minikube ip)
           echo "BancoNova v${{ env.APP_VERSION }} desplegado en produccion"
           echo "Commit: ${{ github.sha }}"
-          echo "URL: http://localhost:30002"
+          echo "URL: http://${MINIKUBE_IP}:30002"

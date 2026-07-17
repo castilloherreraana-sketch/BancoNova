@@ -17,9 +17,29 @@
     box-shadow:var(--shadow)}
   .qa-btn:hover{border-color:var(--navy-60);background:var(--gray-10)}
   .qa-btn svg{width:22px;height:22px;stroke:var(--navy-60);fill:none;stroke-width:1.8}
+
+  /* MODAL DE BIENVENIDA */
+  .modal-overlay{position:fixed;inset:0;background:rgba(11,31,58,.55);
+    display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .modal-card{background:var(--white);border-radius:18px;padding:32px 28px 24px;
+    max-width:340px;width:100%;text-align:center;box-shadow:var(--shadow-lg)}
+  .modal-icon{width:52px;height:52px;border-radius:50%;background:var(--navy);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:22px}
+  .modal-card h2{font-family:var(--font-display);font-size:20px;color:var(--navy);margin-bottom:10px}
+  .modal-card p{font-size:14px;color:var(--gray-90);line-height:1.5;margin-bottom:22px}
 </style>
 
 <div style="display:flex;flex-direction:column;min-height:100vh">
+  {% if mostrar_bienvenida %}
+  <div class="modal-overlay" id="welcome-modal">
+    <div class="modal-card">
+      <div class="modal-icon">🏦</div>
+      <h2>¡Bienvenido, {{ nombre.split(' ')[0] }}!</h2>
+      <p>Ahora puedes realizar pagos y transferencias las 24 horas del día.</p>
+      <button type="button" class="btn-primary" onclick="document.getElementById('welcome-modal').remove()">Entendido</button>
+    </div>
+  </div>
+  {% endif %}
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-brand">

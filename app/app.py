@@ -48,6 +48,8 @@ SERVICIOS = [
     {'nombre': 'TOTALPLAY', 'emoji': '📡', 'desc': 'TV + Net'},
     {'nombre': 'Agua',      'emoji': '💧', 'desc': 'SACMEX'},
     {'nombre': 'Gas',       'emoji': '🔥', 'desc': 'Gas Natural'},
+        #se agrego el servicio de Netflix
+    {'nombre': 'Netflix',   'emoji': '🎬', 'desc': 'Streaming'},
 ]
 
 # ================================================================
@@ -90,6 +92,7 @@ def login():
     session['iniciales'] = usuario['iniciales']
     session['saldo']     = 45820.50
     session['movimientos'] = MOVIMIENTOS.copy()
+    session['mostrar_bienvenida'] = True
     return redirect(url_for('dashboard'))
 
 # ── Logout ────────────────────────────────────────────
@@ -103,13 +106,15 @@ def logout():
 def dashboard():
     if 'usuario' not in session:
         return redirect(url_for('index'))
+    mostrar_bienvenida = session.pop('mostrar_bienvenida', False)
     return render_template('dashboard.html',
                            nombre=session['nombre'],
                            iniciales=session['iniciales'],
                            saldo=session['saldo'],
                            movimientos=session.get('movimientos', [])[:5],
                            ambiente=AMBIENTE,
-                           version=VERSION)
+                           version=VERSION,
+                           mostrar_bienvenida=mostrar_bienvenida)
 
 # ── Transferencias ────────────────────────────────────
 @app.route('/transferencia')

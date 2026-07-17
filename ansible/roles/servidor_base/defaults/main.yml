@@ -1,5 +1,0 @@
----
-# Valores por defecto del rol servidor_base
-# Pueden ser sobreescritos en group_vars o host_vars
-zona_horaria: America/Mexico_City
-usuario_sistema: banconova
